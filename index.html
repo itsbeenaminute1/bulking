@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bulking Weeks</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:800px;margin:auto;padding:12px;background:#f5f5f5}
+h1{text-align:center}
+.day{background:white;border-radius:10px;padding:12px;margin:12px 0}
+.category{margin:10px 0;padding:8px;border:1px solid #ddd;border-radius:8px}
+.category h3{margin:0 0 8px 0;color:black}
+textarea,input[type=text]{width:100%;box-sizing:border-box;margin-top:6px}
+.done{color:green!important}
+label{display:block;margin:4px 0}
+button{padding:10px 14px;font-size:16px}
+</style>
+</head>
+<body>
+<h1 id="mainHeader">Bulking Weeks</h1>
+<div id="container"></div>
+
+<script>
+const days=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+const template=[
+["Breakfast",["Whey protein","Fat free milk","Protein bar"]],
+["Lunch",["Chicken or beef","Mixed vegetables"]],
+["Preworkout snack",["Pb&j and banana sandwich"]],
+["Dinner",["Peanut butter powder","Whey protein","Greek yogurt","Water","Fiber supplement","Creatine","Banana"]],
+["Postworkout snack",["White rice 2 cups","Oats 1 cup","Fat free milk"]]
+];
+
+const container=document.getElementById("container");
+
+days.forEach((day,d)=>{
+ let dayDiv=document.createElement("div");
+ dayDiv.className="day";
+ dayDiv.innerHTML=`<h2>${day}</h2>`;
+
+ template.forEach((cat,c)=>{
+   let div=document.createElement("div");
+   div.className="category";
+   div.dataset.day=d;
+   div.dataset.cat=c;
+
+   let html=`<h3 id="h-${d}-${c}">${cat[0]}</h3>`;
+   cat[1].forEach((item,i)=>{
+      html+=`<label><input type="checkbox" class="cb" data-day="${d}" data-cat="${c}" data-item="${i}"> ${item}</label>`;
+   });
+   html+=`<label>Other: <input type="text" class="other" data-day="${d}" data-cat="${c}"></label>`;
+   div.innerHTML=html;
+   dayDiv.appendChild(div);
+ });
+
+ let notes=document.createElement("div");
+ notes.innerHTML=`<h3>Notes</h3><textarea rows="4" class="notes" data-day="${d}"></textarea>`;
+ dayDiv.appendChild(notes);
+
+ if(day==="Saturday"){
+   let btn=document.createElement("button");
+   btn.textContent="Week Done!";
+   btn.onclick=()=>{
+      if(confirm("Reset all week data?")){
+        localStorage.clear();
+        location.reload();
+      }
+   };
+   dayDiv.appendChild(btn);
+ }
+ container.appendChild(dayDiv);
+});
+
+function save(){
+ document.querySelectorAll(".cb").forEach(el=>{
+   localStorage.setItem("cb_"+el.dataset.day+"_"+el.dataset.cat+"_"+el.dataset.item,el.checked);
+ });
+ document.querySelectorAll(".other").forEach(el=>{
+   localStorage.setItem("other_"+el.dataset.day+"_"+el.dataset.cat,el.value);
+ });
+ document.querySelectorAll(".notes").forEach(el=>{
+   localStorage.setItem("notes_"+el.dataset.day,el.value);
+ });
+ updateColors();
+}
+
+function load(){
+ document.querySelectorAll(".cb").forEach(el=>{
+   el.checked=localStorage.getItem("cb_"+el.dataset.day+"_"+el.dataset.cat+"_"+el.dataset.item)==="true";
+   el.addEventListener("change",save);
+ });
+ document.querySelectorAll(".other").forEach(el=>{
+   el.value=localStorage.getItem("other_"+el.dataset.day+"_"+el.dataset.cat)||"";
+   el.addEventListener("input",save);
+ });
+ document.querySelectorAll(".notes").forEach(el=>{
+   el.value=localStorage.getItem("notes_"+el.dataset.day)||"";
+   el.addEventListener("input",save);
+ });
+ updateColors();
+}
+
+function updateColors(){
+ let allGreen=true;
+
+ document.querySelectorAll(".category").forEach(cat=>{
+   let cbs=cat.querySelectorAll(".cb");
+   let done=[...cbs].every(x=>x.checked);
+   let h=cat.querySelector("h3");
+   h.classList.toggle("done",done);
+   if(!done) allGreen=false;
+ });
+
+ document.getElementById("mainHeader").classList.toggle("done",allGreen);
+}
+
+load();
+</script>
+</body>
+</html>
