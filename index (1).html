@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bulking Weeks</title>
+<style>
+  :root{
+    --bg:#f5f5f5;
+    --card:#ffffff;
+    --border:#ddd;
+    --accent:#2e7d32;
+    --text:#222;
+  }
+  *{box-sizing:border-box}
+  body{
+    font-family:Arial,Helvetica,sans-serif;
+    max-width:800px;
+    margin:auto;
+    padding:12px;
+    background:var(--bg);
+    color:var(--text);
+  }
+  h1{text-align:center}
+
+  /* Day navigation */
+  .nav{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    margin:12px 0;
+  }
+  .nav h2{margin:0;text-align:center;flex:1}
+  .nav h2 .today-tag{font-size:.6em;color:var(--accent);vertical-align:middle}
+  .nav button{
+    padding:10px 16px;
+    font-size:18px;
+    border:none;
+    border-radius:8px;
+    background:var(--accent);
+    color:#fff;
+    cursor:pointer;
+    min-width:52px;
+  }
+  .nav button:active{opacity:.85}
+
+  .day{
+    background:var(--card);
+    border-radius:10px;
+    padding:12px;
+    margin:12px 0;
+    display:none;
+  }
+  .day.active{display:block}
+
+  .category{margin:10px 0;padding:8px;border:1px solid var(--border);border-radius:8px}
+  .category h3{margin:0 0 8px 0}
+  label{display:block;margin:4px 0}
+  textarea,input[type=text]{width:100%;margin-top:6px;font:inherit;padding:6px;border:1px solid var(--border);border-radius:6px}
+  .done{color:var(--accent)!important}
+  button.reset{
+    padding:10px 14px;
+    font-size:16px;
+    border:none;
+    border-radius:8px;
+    background:var(--accent);
+    color:#fff;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<h1 id="mainHeader">Bulking Weeks</h1>
+
+<div class="nav">
+  <button id="prevBtn" aria-label="Previous day">&#8249;</button>
+  <h2 id="dayTitle"></h2>
+  <button id="nextBtn" aria-label="Next day">&#8250;</button>
+</div>
+
+<div id="container"></div>
+
+<script>
+const STORAGE_KEY = "bulkTracker"; // single namespaced key — won't collide with other apps on this domain
+
+const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+
+const template = [
+  ["Breakfast", ["Whey protein","Fat free milk","Protein bar"]],
+  ["Lunch", ["Chicken or beef","Mixed vegetables"]],
+  ["Preworkout snack", ["Pb&j and banana sandwich"]],
+  ["Dinner", ["Peanut butter powder","Whey protein","Greek yogurt","Water","Fiber supplement","Creatine","Banana"]],
+  ["Postworkout snack", ["White rice 2 cups","Oats 1 cup","Fat free milk"]]
+];
+
+// ---------- State ----------
+let state = loadState();
+const todayIndex = new Date().getDay();
+let currentDay = todayIndex; // open on today
+
+function loadState(){
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+  } catch(e){
+    return {};
+  }
+}
+
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function resetWeek(){
+  if (confirm("Reset all week data?")){
+    localStorage.removeItem(STORAGE_KEY); // only this app's data, nothing else
+    location.reload();
+  }
+}
+
+// ---------- Build UI ----------
+const container = document.getElementById("container");
+
+days.forEach((day, d) => {
+  const dayDiv = document.createElement("div");
+  dayDiv.className = "day";
+  dayDiv.id = "day-" + d;
+
+  template.forEach((cat, c) => {
+    const div = document.createElement("div");
+    div.className = "category";
+
+    let html = `<h3>${cat[0]}</h3>`;
+    cat[1].forEach((item, i) => {
+      const checked = state[`cb_${d}_${c}_${i}`] ? "checked" : "";
+      html += `<label><input type="checkbox" class="cb" data-key="cb_${d}_${c}_${i}" ${checked}> ${item}</label>`;
+    });
+    const otherVal = state[`other_${d}_${c}`] || "";
+    html += `<label>Other: <input type="text" class="other" data-key="other_${d}_${c}" value="${otherVal.replace(/"/g,"&quot;")}"></label>`;
+
+    div.innerHTML = html;
+    dayDiv.appendChild(div);
+  });
+
+  const notes = document.createElement("div");
+  const notesVal = state[`notes_${d}`] || "";
+  notes.innerHTML = `<h3>Notes</h3><textarea rows="4" class="notes" data-key="notes_${d}"></textarea>`;
+  notes.querySelector("textarea").value = notesVal;
+  dayDiv.appendChild(notes);
+
+  if (day === "Saturday"){
+    const btn = document.createElement("button");
+    btn.className = "reset";
+    btn.textContent = "Week Done!";
+    btn.onclick = resetWeek;
+    dayDiv.appendChild(btn);
+  }
+
+  container.appendChild(dayDiv);
+});
+
+// ---------- Day navigation ----------
+function showDay(d){
+  currentDay = (d + 7) % 7; // wraps: Saturday -> Sunday and back
+  document.querySelectorAll(".day").forEach(el => el.classList.remove("active"));
+  document.getElementById("day-" + currentDay).classList.add("active");
+  document.getElementById("dayTitle").innerHTML =
+    days[currentDay] + (currentDay === todayIndex ? ' <span class="today-tag">• today</span>' : "");
+  window.scrollTo(0, 0);
+}
+
+document.getElementById("prevBtn").onclick = () => showDay(currentDay - 1);
+document.getElementById("nextBtn").onclick = () => showDay(currentDay + 1);
+
+// ---------- Events (delegated) ----------
+container.addEventListener("change", e => {
+  if (e.target.classList.contains("cb")){
+    state[e.target.dataset.key] = e.target.checked;
+    saveState();
+    updateColors();
+  }
+});
+
+container.addEventListener("input", e => {
+  if (e.target.classList.contains("other") || e.target.classList.contains("notes")){
+    state[e.target.dataset.key] = e.target.value;
+    saveState();
+  }
+});
+
+// ---------- Completion colors ----------
+function updateColors(){
+  let allGreen = true;
+  document.querySelectorAll(".category").forEach(cat => {
+    const cbs = cat.querySelectorAll(".cb");
+    const done = [...cbs].every(x => x.checked);
+    cat.querySelector("h3").classList.toggle("done", done);
+    if (!done) allGreen = false;
+  });
+  document.getElementById("mainHeader").classList.toggle("done", allGreen);
+}
+
+updateColors();
+showDay(todayIndex);
+</script>
+</body>
+</html>
